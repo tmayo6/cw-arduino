@@ -321,7 +321,7 @@ void loop() {
     }
   } else {
     isr();
-    delay(50);
+    delay(80);
   }
 #endif
 
