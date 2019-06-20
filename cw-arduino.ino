@@ -5,6 +5,9 @@
  *
  */
 
+//#define MODE_MESSAGE
+#undef MODE_MESSAGE
+
 //#include <stdio.h>
 #include <string.h>
 
@@ -21,7 +24,11 @@ static int debug = 0;
 char *ptr;
 
 /* message to play */
+#ifdef MODE_MESSAGE
 char message[32];
+#else
+char m;
+#endif
 
 /* state of machine */
 int state;
@@ -58,7 +65,7 @@ unsigned char widget;
  *
  */
 
-char *valid = "etinamsdrgukwohblzfcpvxqyj56#78/+(94=3210:?\";@'-*._),!$>";
+char valid[] = "etinamsdrgukwohblzfcpvxqyj56#78/+(94=3210:?\";@'-*._),!$>";
 
 unsigned char morsecode[] = {
 /* ; e .       00000010 */  0x02,
@@ -178,11 +185,12 @@ void isr(void) {
   case CW_IDLE: /* CW_WAITING for timer to timeout */
     if (--timer != 0)
       break;
-      
+
+#ifdef MODE_MESSAGE
   case CW_START: /* get message and begin CW_PLAYING */
     ptr = message;
-    //if (debug) printf("first ptr = %s\n", ptr);
-    //if (debug) printf("first *ptr = %c\n", *ptr);
+    ////if (debug) printf("first ptr = %s\n", ptr);
+    ////if (debug) printf("first *ptr = %c\n", *ptr);
     widget = morse(*ptr);
     sel_action(widget, &cntr, &play);
     state = CW_PLAYING;
@@ -201,6 +209,20 @@ void isr(void) {
       }
     }
     break;
+#else
+  case CW_START: /* get message and begin CW_PLAYING */
+    widget = morse(m);
+    sel_action(widget, &cntr, &play);
+    state = CW_PLAYING;
+    break;
+
+  case CW_WAITING: /* CW_WAITING for end of message or space */
+
+    if (cntr == 0) {
+        state = CW_IDLE;
+    }
+    break;
+#endif
 
   case CW_PLAYING: /* In the midst of CW_PLAYING morse code for a char */
 
@@ -264,13 +286,20 @@ void setup() {
   // put your setup code here, to run once:
 
   Serial.begin(115200);
+
+#ifdef MODE_MESSAGE
+  strcpy(message, "v v v de n1mu/b fn12");
   state = CW_INIT;
-  strcpy(message, "hello world");
+#else
+  state = CW_IDLE;
+#endif
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
+#ifdef MODE_MESSAGE
   if (state != CW_IDLE) {
     isr();
     delay(80); // totally uncalibrated speed.  Your mileage may vary.  
@@ -279,4 +308,21 @@ void loop() {
     state = CW_INIT;
     delay(3000);
   }
+
+#else
+
+  if (state == CW_IDLE) {
+    if (Serial.available() > 0) {
+      m = Serial.read();
+
+      if (m != -1) {
+        state = CW_INIT;
+      }
+    }
+  } else {
+    isr();
+    delay(50);
+  }
+#endif
+
 }
